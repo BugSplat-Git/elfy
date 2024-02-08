@@ -1,5 +1,5 @@
 {
-  "name": "elfy",
+  "name": "@bugsplat/elfy",
   "version": "1.0.0",
   "description": "Tiny utility for parsing ELF/SELF files.",
   "main": "dist/index.js",
