@@ -28,7 +28,7 @@ A tiny utility for parsing ELF/SELF files.
 npm i elfy
 ```
 
-2. Create an instance of `ElfFile` using the async static factory function `create`. The `ElfFile` class implements `Disposable` so you should use a [using](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management) statement in TypeScript 5.2+ or call `[Symbol.dispose]` manually.
+2. Create an instance of `ElfFile` using the async static factory function `create`. The `ElfFile` class implements `Disposable` so you should use a [using](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management) statement in TypeScript 5.2+ or call `dispose` manually.
 
 ```ts
 import { ElfFile } from 'elfy';
@@ -38,7 +38,7 @@ const elfFile = await ElfFile.create('path/to/elf/file');
 try {
     ...
 } finally {
-    elfFile[Symbol.dispose]();
+    elfFile.dispose();
 }
 ```
 

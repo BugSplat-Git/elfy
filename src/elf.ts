@@ -6,7 +6,7 @@ export class ElfFile implements Disposable {
   private header?: ElfFileHeader;
   private stringTable?: string[];
 
-  private constructor(private fileHandle: FileHandle) {}
+  private constructor(private fileHandle: FileHandle) { }
 
   static async create(path: string) {
     const fileHandle = await open(path, 'r');
@@ -14,6 +14,10 @@ export class ElfFile implements Disposable {
   }
 
   [Symbol.dispose]() {
+    this.dispose();
+  }
+
+  dispose() {
     this.fileHandle?.close();
   }
 
