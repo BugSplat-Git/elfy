@@ -27,11 +27,11 @@ describe('Elf', () => {
     it('should return section contents', async () => {
       const section = await elf.readSection('.note.gnu.build-id');
       const uuid = getUUID(section!);
-      expect(uuid).toBe('005f5f676d6f6e5f73746172745f5f006c696263');
+      expect(uuid).toBe('85fe216fc7dd441f04c237310a56081fbf23c082');
     });
   });
 });
 
 function getUUID(section: Buffer) {
-  return section.subarray(0, 20).toString('hex');
+  return section.subarray(16, 36).toString('hex');
 }
