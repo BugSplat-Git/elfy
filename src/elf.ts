@@ -54,7 +54,8 @@ export class ElfFile implements Disposable {
       throw new Error(`Section ${name} not found`);
     }
 
-    const { sectionOffset, sectionSize } = await this.readSectionHeader(index);
+    const header = await this.readSectionHeader(index);
+    const { sectionOffset, sectionSize } = header;
     const { buffer, bytesRead } = await this.fileHandle.read(
       Buffer.alloc(Number(sectionSize)),
       0,
@@ -84,7 +85,18 @@ export class ElfFile implements Disposable {
       throw new Error('Could not read string table');
     }
 
-    return splitBuffer(buffer, 0x00).map((part) => part.toString('utf-8'));
+    const stringTable = [] as Array<string>;
+
+    // The section names in the strings table aren't necessarily in the same order as the corresponding sections.
+    // Read all the section headers to find the true order of the sections.
+    for (let i = 0; i < this.header!.sectionHeaderEntryCount; i++) {
+      const { sectionNameOffset } = await this.readSectionHeader(i);
+      const nextNull = buffer.indexOf(0x00, sectionNameOffset);
+      const name = buffer.subarray(sectionNameOffset, nextNull).toString('utf-8');
+      stringTable.push(name);
+    }
+
+    return stringTable;
   }
 
   async readSectionHeader(i: number): Promise<ElfSectionHeader> {
