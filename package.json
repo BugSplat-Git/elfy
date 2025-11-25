@@ -2,9 +2,17 @@
   "name": "@bugsplat/elfy",
   "version": "1.0.1",
   "description": "Tiny utility for parsing ELF/SELF files.",
+  "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "test": "ts-node node_modules/jasmine/bin/jasmine",
+    "test": "node --import=tsx node_modules/jasmine/bin/jasmine.js",
     "build": "tsc",
     "prerelease": "npm run build",
     "release": "npm publish --access public"
@@ -24,7 +32,7 @@
     "@types/jasmine": "^5.1.4",
     "@types/node": "^20.11.16",
     "jasmine": "^5.1.0",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.3.3"
   }
 }

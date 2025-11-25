@@ -2,31 +2,50 @@ export const lengthOf64BitElfHeader = 64;
 const elfMagic = [0x7f, 0x45, 0x4c, 0x46];
 
 export class ElfFileHeader {
-  constructor(
-    public readonly segmentHeaderOffset: bigint,
-    public readonly sectionHeaderOffset: bigint,
-    public readonly segmentHeaderSize: number,
-    public readonly segmentHeaderEntrySize: number,
-    public readonly segmentHeaderEntryCount: number,
-    public readonly sectionHeaderEntrySize: number,
-    public readonly sectionHeaderEntryCount: number,
-    public readonly stringTableIndex: number,
-  ) {}
+  readonly segmentHeaderOffset: bigint;
+  readonly sectionHeaderOffset: bigint;
+  readonly segmentHeaderSize: number;
+  readonly segmentHeaderEntrySize: number;
+  readonly segmentHeaderEntryCount: number;
+  readonly sectionHeaderEntrySize: number;
+  readonly sectionHeaderEntryCount: number;
+  readonly stringTableIndex: number;
 
-  static parse(buffer: Buffer) {
-    if (buffer.length < lengthOf64BitElfHeader) {
+  constructor(
+    segmentHeaderOffset: bigint,
+    sectionHeaderOffset: bigint,
+    segmentHeaderSize: number,
+    segmentHeaderEntrySize: number,
+    segmentHeaderEntryCount: number,
+    sectionHeaderEntrySize: number,
+    sectionHeaderEntryCount: number,
+    stringTableIndex: number,
+  ) {
+    this.segmentHeaderOffset = segmentHeaderOffset;
+    this.sectionHeaderOffset = sectionHeaderOffset;
+    this.segmentHeaderSize = segmentHeaderSize;
+    this.segmentHeaderEntrySize = segmentHeaderEntrySize;
+    this.segmentHeaderEntryCount = segmentHeaderEntryCount;
+    this.sectionHeaderEntrySize = sectionHeaderEntrySize;
+    this.sectionHeaderEntryCount = sectionHeaderEntryCount;
+    this.stringTableIndex = stringTableIndex;
+  }
+
+  static parse(data: Uint8Array): ElfFileHeader {
+    if (data.length < lengthOf64BitElfHeader) {
       throw new Error('Could not parse ELF header, invalid buffer!');
     }
 
-    const expected = Buffer.from(elfMagic);
-    const isElf = Buffer.compare(buffer.subarray(0, 4), expected) === 0;
+    const isElf = data[0] === elfMagic[0] 
+      && data[1] === elfMagic[1] 
+      && data[2] === elfMagic[2] 
+      && data[3] === elfMagic[3];
 
     if (!isElf) {
       throw new Error('Could not parse ELF header, invalid ELF file!');
     }
 
-    const is64Bit =
-      Buffer.compare(buffer.subarray(4, 5), Buffer.from([0x02])) === 0;
+    const is64Bit = data[4] === 0x02;
 
     if (!is64Bit) {
       throw new Error(
@@ -34,8 +53,7 @@ export class ElfFileHeader {
       );
     }
 
-    const isLE =
-      Buffer.compare(buffer.subarray(5, 6), Buffer.from([0x01])) === 0;
+    const isLE = data[5] === 0x01;
 
     if (!isLE) {
       throw new Error(
@@ -43,14 +61,16 @@ export class ElfFileHeader {
       );
     }
 
-    const segmentHeaderOffset = buffer.readBigUInt64LE(32);
-    const sectionHeaderOffset = buffer.readBigUInt64LE(40);
-    const segmentHeaderSize = buffer.readUint16LE(52);
-    const segmentHeaderEntrySize = buffer.readUint16LE(54);
-    const segmentHeaderEntryCount = buffer.readUint16LE(56);
-    const sectionHeaderEntrySize = buffer.readUint16LE(58);
-    const sectionHeaderEntryCount = buffer.readUint16LE(60);
-    const stringTableIndex = buffer.readUint16LE(62);
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+
+    const segmentHeaderOffset = view.getBigUint64(32, true);
+    const sectionHeaderOffset = view.getBigUint64(40, true);
+    const segmentHeaderSize = view.getUint16(52, true);
+    const segmentHeaderEntrySize = view.getUint16(54, true);
+    const segmentHeaderEntryCount = view.getUint16(56, true);
+    const sectionHeaderEntrySize = view.getUint16(58, true);
+    const sectionHeaderEntryCount = view.getUint16(60, true);
+    const stringTableIndex = view.getUint16(62, true);
 
     return new ElfFileHeader(
       segmentHeaderOffset,

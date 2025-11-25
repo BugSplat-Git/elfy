@@ -1,14 +1,37 @@
-import { ElfFile } from '../src/elf';
+import { FileHandle, open } from 'node:fs/promises';
+import { ElfFile } from '../src/elf.js';
+import { DataSource } from '../src/data-source.js';
+
+/**
+ * Node.js-specific DataSource implementation for tests.
+ * This demonstrates how Node.js users can create their own DataSource.
+ */
+class FileHandleDataSource implements DataSource {
+  private fileHandle: FileHandle;
+
+  constructor(fileHandle: FileHandle) {
+    this.fileHandle = fileHandle;
+  }
+
+  async read(offset: number, length: number): Promise<Uint8Array> {
+    const buffer = new Uint8Array(length);
+    const { bytesRead } = await this.fileHandle.read(buffer, 0, length, offset);
+    return buffer.slice(0, bytesRead);
+  }
+}
 
 describe('Elf', () => {
   let elf: ElfFile;
+  let fileHandle: FileHandle;
 
   beforeEach(async () => {
-    elf = await ElfFile.create('./spec/hello.elf');
+    fileHandle = await open('./spec/hello.elf', 'r');
+    const dataSource = new FileHandleDataSource(fileHandle);
+    elf = new ElfFile(dataSource);
   });
 
-  afterEach(() => {
-    elf[Symbol.dispose]();
+  afterEach(async () => {
+    await fileHandle.close();
   });
 
   describe('tryReadSection', () => {
@@ -32,6 +55,8 @@ describe('Elf', () => {
   });
 });
 
-function getUUID(section: Buffer) {
-  return section.subarray(16, 36).toString('hex');
+function getUUID(section: Uint8Array) {
+  return Array.from(section.slice(16, 36))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
