@@ -1,6 +1,7 @@
 import { FileHandle, open } from 'node:fs/promises';
-import { ElfFile } from '../src/elf.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DataSource } from '../src/data-source.js';
+import { ElfFile } from '../src/elf.js';
 
 /**
  * Node.js-specific DataSource implementation for tests.
@@ -37,12 +38,12 @@ describe('Elf', () => {
   describe('tryReadSection', () => {
     it("should return false if section can't be read", async () => {
       const { success } = await elf.tryReadSection('.does-not-exist');
-      expect(success).toEqual(false);
+      expect(success).toBe(false);
     });
 
     it('should return section if section can be read', async () => {
       const { success } = await elf.tryReadSection('.note.gnu.build-id');
-      expect(success).toEqual(true);
+      expect(success).toBe(true);
     });
   });
 
