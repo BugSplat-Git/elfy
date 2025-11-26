@@ -1,14 +1,36 @@
 export class ElfSectionHeader {
+  readonly sectionNameOffset: number;
+  readonly sectionType: number;
+  readonly sectionFlags: bigint;
+  readonly sectionLoadAddress: bigint;
+  readonly sectionOffset: bigint;
+  readonly sectionSize: bigint;
+  readonly sectionLink: number;
+  readonly sectionInfo: number;
+  readonly sectionAlignment: bigint;
+  readonly sectionEntrySize: bigint;
+
   constructor(
-    public readonly sectionNameOffset: number,
-    public readonly sectionType: number,
-    public readonly sectionFlags: bigint,
-    public readonly sectionLoadAddress: bigint,
-    public readonly sectionOffset: bigint,
-    public readonly sectionSize: bigint,
-    public readonly sectionLink: number,
-    public readonly sectionInfo: number,
-    public readonly sectionAlignment: bigint,
-    public readonly sectionEntrySize: bigint,
-  ) {}
+    sectionNameOffset: number,
+    sectionType: number,
+    sectionFlags: bigint,
+    sectionLoadAddress: bigint,
+    sectionOffset: bigint,
+    sectionSize: bigint,
+    sectionLink: number,
+    sectionInfo: number,
+    sectionAlignment: bigint,
+    sectionEntrySize: bigint,
+  ) {
+    this.sectionNameOffset = sectionNameOffset;
+    this.sectionType = sectionType;
+    this.sectionFlags = sectionFlags;
+    this.sectionLoadAddress = sectionLoadAddress;
+    this.sectionOffset = sectionOffset;
+    this.sectionSize = sectionSize;
+    this.sectionLink = sectionLink;
+    this.sectionInfo = sectionInfo;
+    this.sectionAlignment = sectionAlignment;
+    this.sectionEntrySize = sectionEntrySize;
+  }
 }

@@ -1,30 +1,18 @@
-import { FileHandle, open } from 'node:fs/promises';
-import { ElfFileHeader, lengthOf64BitElfHeader } from './file-header';
-import { ElfSectionHeader } from './section-header';
+import { DataSource } from './data-source.js';
+import { ElfFileHeader, lengthOf64BitElfHeader } from './file-header.js';
+import { ElfSectionHeader } from './section-header.js';
 
-export class ElfFile implements Disposable {
+export class ElfFile {
   private header?: ElfFileHeader;
   private stringTable?: string[];
+  private dataSource: DataSource;
 
-  private constructor(private fileHandle: FileHandle) { }
-
-  static async create(path: string) {
-    const fileHandle = await open(path, 'r');
-    return new ElfFile(fileHandle);
+  constructor(dataSource: DataSource) {
+    this.dataSource = dataSource;
   }
 
-  [Symbol.dispose]() {
-    this.dispose();
-  }
-
-  dispose() {
-    this.fileHandle?.close();
-  }
-
-  async tryReadSection(
-    name: string
-  ): Promise<{ success: boolean; section?: Buffer }> {
-    let section: Buffer | undefined = undefined;
+  async tryReadSection(name: string): Promise<{ success: boolean; section?: Uint8Array }> {
+    let section: Uint8Array | undefined = undefined;
     let success = true;
 
     try {
@@ -39,7 +27,7 @@ export class ElfFile implements Disposable {
     };
   }
 
-  async readSection(name: string): Promise<Buffer> {
+  async readSection(name: string): Promise<Uint8Array> {
     if (!this.header) {
       this.header = await this.readFileHeader();
     }
@@ -56,43 +44,36 @@ export class ElfFile implements Disposable {
 
     const header = await this.readSectionHeader(index);
     const { sectionOffset, sectionSize } = header;
-    const { buffer, bytesRead } = await this.fileHandle.read(
-      Buffer.alloc(Number(sectionSize)),
-      0,
-      Number(sectionSize),
-      Number(sectionOffset)
-    );
 
-    if (bytesRead !== Number(sectionSize)) {
+    const data = await this.dataSource.read(Number(sectionOffset), Number(sectionSize));
+
+    if (data.length !== Number(sectionSize)) {
       throw new Error(`Could not read section ${name}`);
     }
 
-    return buffer;
+    return data;
   }
 
   private async createStringTable(): Promise<Array<string>> {
     const { stringTableIndex } = this.header!;
     const stringTableHeader = await this.readSectionHeader(stringTableIndex);
     const { sectionOffset, sectionSize } = stringTableHeader;
-    const { buffer, bytesRead } = await this.fileHandle.read(
-      Buffer.alloc(Number(sectionSize)),
-      0,
-      Number(sectionSize),
-      Number(sectionOffset)
-    );
 
-    if (bytesRead !== Number(sectionSize)) {
+    const stringTableData = await this.dataSource.read(Number(sectionOffset), Number(sectionSize));
+
+    if (stringTableData.length !== Number(sectionSize)) {
       throw new Error('Could not read string table');
     }
 
-    const stringTable = [] as Array<string>;
+    const stringTable: Array<string> = [];
 
     // The section names in the strings table aren't necessarily in the same order as the corresponding sections.
     // Read all the section headers to find the true order of the sections.
     for (let i = 0; i < this.header!.sectionHeaderEntryCount; i++) {
       const { sectionNameOffset } = await this.readSectionHeader(i);
-      const nextNull = buffer.indexOf(0x00, sectionNameOffset);
-      const name = buffer.subarray(sectionNameOffset, nextNull).toString('utf-8');
+      const nextNull = stringTableData.indexOf(0x00, sectionNameOffset);
+      const nameBytes = stringTableData.slice(sectionNameOffset, nextNull);
+      const name = new TextDecoder().decode(nameBytes);
       stringTable.push(name);
     }
 
@@ -101,29 +82,26 @@ export class ElfFile implements Disposable {
 
   async readSectionHeader(i: number): Promise<ElfSectionHeader> {
     const { sectionHeaderOffset, sectionHeaderEntrySize } = this.header!;
-    const headerStart =
-      Number(sectionHeaderOffset) + i * sectionHeaderEntrySize;
-    const { buffer, bytesRead } = await this.fileHandle.read(
-      Buffer.alloc(sectionHeaderEntrySize),
-      0,
-      sectionHeaderEntrySize,
-      headerStart
-    );
+    const headerStart = Number(sectionHeaderOffset) + i * sectionHeaderEntrySize;
 
-    if (bytesRead !== sectionHeaderEntrySize) {
+    const data = await this.dataSource.read(headerStart, sectionHeaderEntrySize);
+
+    if (data.length !== sectionHeaderEntrySize) {
       throw new Error('Could not read section header');
     }
 
-    const sectionNameOffset = buffer.readUInt32LE(0);
-    const sectionType = buffer.readUInt32LE(4);
-    const sectionFlags = buffer.readBigUInt64LE(8);
-    const sectionLoadAddress = buffer.readBigUInt64LE(16);
-    const sectionOffset = buffer.readBigUInt64LE(24);
-    const sectionSize = buffer.readBigUInt64LE(32);
-    const sectionLink = buffer.readUInt32LE(40);
-    const sectionInfo = buffer.readUInt32LE(44);
-    const sectionAlignment = buffer.readBigUInt64LE(48);
-    const sectionEntrySize = buffer.readBigUInt64LE(56);
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+
+    const sectionNameOffset = view.getUint32(0, true);
+    const sectionType = view.getUint32(4, true);
+    const sectionFlags = view.getBigUint64(8, true);
+    const sectionLoadAddress = view.getBigUint64(16, true);
+    const sectionOffset = view.getBigUint64(24, true);
+    const sectionSize = view.getBigUint64(32, true);
+    const sectionLink = view.getUint32(40, true);
+    const sectionInfo = view.getUint32(44, true);
+    const sectionAlignment = view.getBigUint64(48, true);
+    const sectionEntrySize = view.getBigUint64(56, true);
 
     return new ElfSectionHeader(
       sectionNameOffset,
@@ -135,35 +113,17 @@ export class ElfFile implements Disposable {
       sectionLink,
       sectionInfo,
       sectionAlignment,
-      sectionEntrySize
+      sectionEntrySize,
     );
   }
 
-  async readFileHeader(): Promise<ElfFileHeader | undefined> {
-    const { buffer, bytesRead } = await this.fileHandle.read(
-      Buffer.alloc(lengthOf64BitElfHeader),
-      0,
-      lengthOf64BitElfHeader,
-      0
-    );
+  async readFileHeader(): Promise<ElfFileHeader> {
+    const data = await this.dataSource.read(0, lengthOf64BitElfHeader);
 
-    if (bytesRead !== lengthOf64BitElfHeader) {
+    if (data.length !== lengthOf64BitElfHeader) {
       throw new Error('Could not read ELF header');
     }
 
-    return ElfFileHeader.parse(buffer);
+    return ElfFileHeader.parse(data);
   }
-}
-
-function splitBuffer(buffer: Buffer, delimiter: number) {
-  const parts = [] as Array<Buffer>;
-  let start = 0;
-  let index = 0;
-  // Believe it or not, according to elfsharp the first part is indeed empty
-  while ((index = buffer.indexOf(delimiter, start)) !== -1) {
-    parts.push(buffer.subarray(start, index));
-    start = index + 1;
-  }
-  parts.push(buffer.subarray(start));
-  return parts;
 }
