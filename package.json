@@ -26,6 +26,9 @@
   ],
   "author": "@bobbyg603",
   "license": "MIT",
+  "bin": {
+    "elfy": "dist/cli.js"
+  },
   "files": [
     "dist"
   ],
